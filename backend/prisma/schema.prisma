@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  fullName      String
+  bio           String?
+  avatarUrl     String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  reviews       Review[]
+  readingLists  ReadingList[]
+  followers     Follow[]  @relation("UserFollowers")
+  following     Follow[]  @relation("UserFollowing")
+
+  @@index([email])
+  @@index([username])
+}
+
+model Book {
+  id              String    @id @default(cuid())
+  isbn            String    @unique
+  title           String
+  author          String
+  publisher       String?
+  publishedYear   Int?
+  genre           String?
+  description     String?
+  coverImageUrl   String?
+  pageCount       Int?
+  language        String    @default("English")
+  averageRating   Float     @default(0)
+  ratingsCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  reviews         Review[]
+  readingListEntries ReadingListEntry[]
+
+  @@index([isbn])
+  @@index([title])
+  @@index([author])
+}
+
+model Review {
+  id            String    @id @default(cuid())
+  rating        Int       // 1-5 stars
+  title         String
+  content       String
+  helpfulCount  Int       @default(0)
+  spoilerFlag   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId        String
+  book          Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
+}
+
+model ReadingList {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  isPublic      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries       ReadingListEntry[]
+
+  @@index([userId])
+}
+
+model ReadingListEntry {
+  id              String    @id @default(cuid())
+  status          ReadingStatus @default(WANT_TO_READ)
+  progress        Int?      // Percentage of book read
+  startDate       DateTime?
+  finishDate      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  readingListId   String
+  readingList     ReadingList @relation(fields: [readingListId], references: [id], onDelete: Cascade)
+  bookId          String
+  book            Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([readingListId, bookId])
+  @@index([readingListId])
+  @@index([bookId])
+}
+
+model Follow {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  followerId    String
+  follower      User      @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId   String
+  following     User      @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum ReadingStatus {
+  WANT_TO_READ
+  READING
+  COMPLETED
+  ABANDONED
+}
